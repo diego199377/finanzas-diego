@@ -1,0 +1,14 @@
+{
+  "Alimentación":    ["Mercado", "Restaurantes", "Delivery", "Café", "Bodega"],
+  "Transporte":      ["Combustible", "Taxi/Uber", "Público", "Mantenimiento", "Peajes"],
+  "Servicios fijos": ["Internet", "Celular", "Luz", "Agua", "Streaming", "Gas"],
+  "Ocio":            ["Salidas", "Viajes", "Hobbies", "Audio", "Cine/Conciertos"],
+  "Salud":           ["Farmacia", "Consultas", "Seguro", "Gimnasio"],
+  "Vestimenta":      ["Ropa", "Calzado", "Accesorios"],
+  "Hogar":           ["Muebles", "Decoración", "Electrodomésticos", "Mantenimiento", "Oxapampa"],
+  "Tecnología":      ["Hardware", "Software", "Suscripciones"],
+  "Financiero":      ["Comisiones", "Intereses", "Transferencias enviadas"],
+  "Yape personal":   ["Préstamos dados", "Regalos", "Reembolsos"],
+  "Inversiones":     ["Acciones", "Fondos", "Ahorros", "Cripto"],
+  "Otros":           []
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "alias":          "BCP Crédito",
+    "banco":          "BCP",
+    "tipo":           "Credito",
+    "ultimos4":       "0000",
+    "linea_aprobada": 5000.0,
+    "dia_corte":      15,
+    "dia_pago":       5,
+    "activa":         1,
+    "color_hex":      "#1a56db"
+  },
+  {
+    "alias":          "BBVA Débito",
+    "banco":          "BBVA",
+    "tipo":           "Debito",
+    "ultimos4":       "0000",
+    "linea_aprobada": null,
+    "dia_corte":      null,
+    "dia_pago":       null,
+    "activa":         1,
+    "color_hex":      "#004990"
+  }
+]

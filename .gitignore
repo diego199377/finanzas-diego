@@ -1,0 +1,17 @@
+data/*.db
+data/*.sqlite
+__pycache__/
+*.pyc
+.env
+.env.local
+.env.*.local
+*.egg-info/
+.venv/
+venv/
+*.log
+.streamlit/secrets.toml
+
+# OAuth y tokens de Gmail
+credentials.json
+token.json
+*.token
