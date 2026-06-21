@@ -16,6 +16,30 @@ st.set_page_config(
     initial_sidebar_state="auto",
 )
 
+# Forzar sidebar cerrado en móvil (workaround Streamlit Cloud)
+st.markdown("""
+<script>
+(function() {
+    const checkMobile = () => window.innerWidth < 768;
+    const closeSidebar = () => {
+        if (!checkMobile()) return;
+        const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar) {
+            const ariaExpanded = sidebar.getAttribute('aria-expanded');
+            if (ariaExpanded === 'true') {
+                const closeBtn = window.parent.document.querySelector('[data-testid="stSidebarCollapseButton"] button, [kind="header"]');
+                if (closeBtn) closeBtn.click();
+            }
+        }
+    };
+    // Intentar varias veces porque Streamlit es lento al cargar
+    setTimeout(closeSidebar, 100);
+    setTimeout(closeSidebar, 500);
+    setTimeout(closeSidebar, 1000);
+    setTimeout(closeSidebar, 2000);
+})();
+</script>
+""", unsafe_allow_html=True)
 # ── HANDLER DE LOGOUT ────────────────────────────────────────────────────────
 # Flujo: botón → ?logout=1 en URL → rerun → este handler → cookie borrada
 # → session limpia → rerun limpio.
