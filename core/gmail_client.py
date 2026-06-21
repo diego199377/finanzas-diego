@@ -1,6 +1,8 @@
-"""Cliente Gmail con OAuth 2.0. Solo lectura (gmail.readonly)."""
+"""Cliente Gmail con OAuth 2.0. Funciona en local y en Streamlit Cloud."""
 
 import base64
+import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -13,7 +15,6 @@ from googleapiclient.discovery import build
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 _BASE_DIR = Path(__file__).parent.parent
-CREDENTIALS_PATH = _BASE_DIR / "credentials.json"
 TOKEN_PATH = _BASE_DIR / "token.json"
 
 QUERIES_BANCO = {
@@ -23,24 +24,119 @@ QUERIES_BANCO = {
 }
 
 
+def _es_produccion() -> bool:
+    """Detecta si la app corre en Streamlit Cloud."""
+    if os.getenv("STREAMLIT_SHARING_MODE") or os.getenv("STREAMLIT_SERVER_HEADLESS"):
+        return True
+    return os.getenv("APP_ENV", "development") == "production"
+
+
+def _get_client_config() -> dict:
+    """
+    Lee la configuración OAuth del lugar correcto según ambiente.
+    - Local:      credentials-web.json (Web) o credentials.json (Desktop/fallback)
+    - Producción: st.secrets["gmail_credentials"]
+    """
+    if _es_produccion():
+        try:
+            import streamlit as st
+            s = st.secrets["gmail_credentials"]
+            return {
+                "web": {
+                    "client_id":                    s["client_id"],
+                    "project_id":                   s["project_id"],
+                    "auth_uri":                     s["auth_uri"],
+                    "token_uri":                    s["token_uri"],
+                    "auth_provider_x509_cert_url":  s["auth_provider_x509_cert_url"],
+                    "client_secret":                s["client_secret"],
+                    "redirect_uris":                list(s["redirect_uris"]),
+                }
+            }
+        except Exception as exc:
+            raise RuntimeError(
+                "No se pudieron leer credentials de st.secrets['gmail_credentials']. "
+                f"Verifica la configuración en Streamlit Cloud. Error: {exc}"
+            ) from exc
+    else:
+        # Preferir Web client; fallback a Desktop
+        for fname in ("credentials-web.json", "credentials.json"):
+            path = _BASE_DIR / fname
+            if path.exists():
+                with open(path, encoding="utf-8") as f:
+                    return json.load(f)
+        raise FileNotFoundError(
+            "No se encontró credentials-web.json ni credentials.json. "
+            "Descarga las credenciales OAuth desde Google Cloud Console."
+        )
+
+
+def _get_token_dict() -> Optional[dict]:
+    """
+    Lee el token OAuth según ambiente:
+    - Local:      lee token.json del disco.
+    - Producción: lee desde st.secrets["gmail_token"].
+    """
+    if _es_produccion():
+        try:
+            import streamlit as st
+            s = st.secrets["gmail_token"]
+            return {
+                "token":         s["token"],
+                "refresh_token": s["refresh_token"],
+                "token_uri":     s["token_uri"],
+                "client_id":     s["client_id"],
+                "client_secret": s["client_secret"],
+                "scopes":        list(s["scopes"]),
+            }
+        except Exception as exc:
+            print(f"[gmail_client] No se pudo leer gmail_token de st.secrets: {exc}")
+            return None
+    else:
+        if TOKEN_PATH.exists():
+            try:
+                with open(TOKEN_PATH, encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as exc:
+                print(f"[gmail_client] Error leyendo token.json: {exc}")
+        return None
+
+
 def get_credentials() -> Credentials:
-    """Maneja flujo OAuth. Lee token.json si existe; lanza browser si no."""
-    creds = None
-    if TOKEN_PATH.exists():
-        creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
+    """
+    Obtiene credenciales OAuth válidas.
+    - Local:      token.json del disco; abre navegador si no existe.
+    - Producción: st.secrets["gmail_token"]; falla claro si no hay token.
+    """
+    creds: Optional[Credentials] = None
+
+    token_data = _get_token_dict()
+    if token_data:
+        try:
+            creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+        except Exception as exc:
+            print(f"[gmail_client] Error creando Credentials desde token: {exc}")
+            creds = None
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            if not CREDENTIALS_PATH.exists():
-                raise FileNotFoundError(
-                    f"No se encontró credentials.json en {CREDENTIALS_PATH}. "
-                    "Descárgalo desde Google Cloud Console."
+            try:
+                creds.refresh(Request())
+                if not _es_produccion():
+                    TOKEN_PATH.write_text(creds.to_json(), encoding="utf-8")
+            except Exception as exc:
+                print(f"[gmail_client] Refresh falló: {exc}")
+                creds = None
+
+        if not creds:
+            if _es_produccion():
+                raise RuntimeError(
+                    "En producción se requiere un token válido en st.secrets['gmail_token']. "
+                    "Si el token expiró, regenéralo localmente y actualiza los secrets."
                 )
-            flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_PATH), SCOPES)
+            client_config = _get_client_config()
+            flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
             creds = flow.run_local_server(port=0)
-        TOKEN_PATH.write_text(creds.to_json(), encoding="utf-8")
+            TOKEN_PATH.write_text(creds.to_json(), encoding="utf-8")
 
     return creds
 
