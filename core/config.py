@@ -1,36 +1,37 @@
+"""Configuración de variables de entorno."""
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
+# Placeholders que indican variable sin configurar (del .env.example)
 _PLACEHOLDERS = {
-    "https://your-project.supabase.co",
-    "your-anon-key-here",
-    "your-service-role-key-here",
-    "your-db-password-here",
     "postgresql://postgres.project-id:password@aws-1-sa-east-1.pooler.supabase.com:5432/postgres",
     "generate-a-random-secret-for-sessions",
+    "sk-ant-api03-your-key-here",
+    "your-anthropic-key",
 }
 
+# Variables CRÍTICAS que la app necesita para arrancar
 _VARS_CRITICAS = [
-    "SUPABASE_URL",
-    "SUPABASE_ANON_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "SUPABASE_DB_PASSWORD",
     "DATABASE_URL",
     "APP_SECRET_KEY",
 ]
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-SUPABASE_DB_PASSWORD = os.getenv("SUPABASE_DB_PASSWORD")
+# Variables OPCIONALES (la app puede arrancar sin ellas, pero algunas features no funcionarán)
+_VARS_OPCIONALES = [
+    "ANTHROPIC_API_KEY",  # sin esto el parser IA no funciona
+]
+
+# Cargar variables
 DATABASE_URL = os.getenv("DATABASE_URL")
-APP_ENV = os.getenv("APP_ENV", "development")
 APP_SECRET_KEY = os.getenv("APP_SECRET_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+APP_ENV = os.getenv("APP_ENV", "development")
 
 
 def is_configured() -> bool:
+    """Verifica si las variables críticas están configuradas correctamente."""
     for var in _VARS_CRITICAS:
         valor = os.getenv(var)
         if valor is None or valor in _PLACEHOLDERS or valor.startswith("your-"):
@@ -39,6 +40,7 @@ def is_configured() -> bool:
 
 
 def _validar():
+    """Valida que las variables críticas estén configuradas. Las opcionales solo dan warning."""
     faltantes = []
     con_placeholder = []
 
@@ -58,10 +60,21 @@ def _validar():
     if con_placeholder:
         raise EnvironmentError(
             f"Variables con placeholder sin configurar: {', '.join(con_placeholder)}.\n"
-            "Edita el archivo .env con tus credenciales reales de Supabase."
+            "Edita el archivo .env con tus credenciales reales."
         )
 
-    print("Variables de entorno cargadas correctamente.")
+    # Warning para opcionales (no falla, solo informa)
+    opcionales_faltantes = []
+    for var in _VARS_OPCIONALES:
+        valor = os.getenv(var)
+        if valor is None or valor in _PLACEHOLDERS or valor.startswith("your-"):
+            opcionales_faltantes.append(var)
+
+    if opcionales_faltantes:
+        print(f"⚠️  Variables opcionales sin configurar: {', '.join(opcionales_faltantes)}")
+        print("   La app arrancará pero algunas features estarán deshabilitadas.")
+    else:
+        print("✅ Variables de entorno cargadas correctamente.")
 
 
 _validar()
