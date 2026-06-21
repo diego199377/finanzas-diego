@@ -16,3 +16,4 @@ credentials.json
 token.json
 *.token
 credentials-web.json
+test_sidebar_minimal.py

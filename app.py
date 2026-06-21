@@ -16,30 +16,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Forzar sidebar cerrado en móvil (workaround Streamlit Cloud)
-st.markdown("""
-<script>
-(function() {
-    const checkMobile = () => window.innerWidth < 768;
-    const closeSidebar = () => {
-        if (!checkMobile()) return;
-        const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
-        if (sidebar) {
-            const ariaExpanded = sidebar.getAttribute('aria-expanded');
-            if (ariaExpanded === 'true') {
-                const closeBtn = window.parent.document.querySelector('[data-testid="stSidebarCollapseButton"] button, [kind="header"]');
-                if (closeBtn) closeBtn.click();
-            }
-        }
-    };
-    // Intentar varias veces porque Streamlit es lento al cargar
-    setTimeout(closeSidebar, 100);
-    setTimeout(closeSidebar, 500);
-    setTimeout(closeSidebar, 1000);
-    setTimeout(closeSidebar, 2000);
-})();
-</script>
-""", unsafe_allow_html=True)
 # ── HANDLER DE LOGOUT ────────────────────────────────────────────────────────
 # Flujo: botón → ?logout=1 en URL → rerun → este handler → cookie borrada
 # → session limpia → rerun limpio.
@@ -280,24 +256,8 @@ if not _logged_in:
     _mostrar_login()
     st.stop()
 
-# ── CSS post-login: sidebar siempre visible ───────────────────────────────────
+# ── CSS post-login: estilo de títulos de sección en sidebar ──────────────────
 st.html("""<style>
-[data-testid="stSidebar"] {
-    display: flex !important;
-    visibility: visible !important;
-    transform: none !important;
-    margin-left: 0 !important;
-    min-width: 244px !important;
-}
-[data-testid="stSidebar"][aria-expanded="false"] {
-    display: flex !important;
-    transform: translateX(0) !important;
-}
-[data-testid="stSidebarCollapsedControl"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
 [data-testid="stSidebarNav"] > div > div > div > p,
 [data-testid="stSidebarNav"] > div > div > div > div > p,
 section[data-testid="stSidebar"] [data-testid="stSidebarNav"] p {
