@@ -13,7 +13,7 @@ st.set_page_config(
     page_title="Finanzas Diego",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="auto",
+    initial_sidebar_state="collapsed",
 )
 
 # Forzar sidebar cerrado en móvil (workaround Streamlit Cloud)
