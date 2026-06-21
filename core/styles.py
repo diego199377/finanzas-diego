@@ -157,6 +157,100 @@ def inject_css():
     /* === FOOTER STREAMLIT === */
     footer {{ display: none !important; }}
     .viewerBadge_link__1S137 {{ display: none !important; }}
+
+    /* ── Mejoras de UX en móvil (DEFINITIVA, sin romper hamburguesa) ─── */
+
+    /* IMPORTANTE: NO ocultar botones del header (rompe la hamburguesa móvil) */
+
+    /* Ocultar elementos de Streamlit Cloud específicos (NO el header completo) */
+    [data-testid="stToolbar"] {{ display: none !important; }}
+    [data-testid="stDecoration"] {{ display: none !important; }}
+    [data-testid="stStatusWidget"] {{ display: none !important; }}
+    [data-testid="manage-app-button"] {{ display: none !important; }}
+    .viewerBadge_link__qRIco {{ display: none !important; }}
+    .viewerBadge_container__1QSob {{ display: none !important; }}
+    .stDeployButton {{ display: none !important; }}
+    #MainMenu {{ visibility: hidden !important; }}
+    footer {{ visibility: hidden !important; }}
+
+    /* ── Móvil: ajustes responsive ─────────────────────────────────── */
+    @media (max-width: 768px) {{
+
+        /* Sidebar: ancho controlado en móvil */
+        section[data-testid="stSidebar"],
+        [data-testid="stSidebar"] {{
+            width: 85vw !important;
+            min-width: 85vw !important;
+            max-width: 280px !important;
+        }}
+
+        /* Contenido principal: padding reducido */
+        .main .block-container,
+        [data-testid="stAppViewContainer"] .main .block-container {{
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            padding-top: 1rem !important;
+            padding-bottom: 4rem !important;
+            max-width: 100vw !important;
+        }}
+
+        /* Títulos más legibles */
+        h1, .stMarkdown h1 {{
+            font-size: 1.5rem !important;
+            line-height: 1.3 !important;
+        }}
+        h2, .stMarkdown h2 {{ font-size: 1.2rem !important; }}
+        h3, .stMarkdown h3 {{ font-size: 1.05rem !important; }}
+
+        /* Botones touch-friendly (pero NO header buttons) */
+        .stButton button {{
+            width: 100% !important;
+            min-height: 44px !important;
+            font-size: 0.95rem !important;
+        }}
+
+        /* Tablas scroll horizontal */
+        [data-testid="stDataFrame"],
+        [data-testid="stTable"] {{
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            max-width: 100% !important;
+        }}
+
+        /* Métricas compactas */
+        [data-testid="stMetric"] {{ margin-bottom: 0.5rem !important; }}
+        [data-testid="stMetricLabel"] {{ font-size: 0.75rem !important; }}
+        [data-testid="stMetricValue"] {{ font-size: 1.2rem !important; }}
+
+        /* Inputs touch-friendly */
+        .stTextInput input,
+        .stTextArea textarea,
+        [data-baseweb="input"] input {{
+            min-height: 44px !important;
+            font-size: 1rem !important;
+        }}
+
+        /* Columnas: stackear */
+        [data-testid="column"] {{
+            flex: 1 1 100% !important;
+            width: 100% !important;
+            min-width: 100% !important;
+        }}
+
+        /* Espacios verticales reducidos */
+        [data-testid="stVerticalBlock"] {{
+            gap: 0.5rem !important;
+        }}
+    }}
+
+    /* Móvil pequeño */
+    @media (max-width: 480px) {{
+        .main .block-container {{
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+        }}
+        h1, .stMarkdown h1 {{ font-size: 1.3rem !important; }}
+    }}
     </style>
     """)
 
