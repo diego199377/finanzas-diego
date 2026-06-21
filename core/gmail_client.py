@@ -1,4 +1,4 @@
-"""Cliente Gmail con OAuth 2.0. Funciona en local y en Streamlit Cloud."""
+"""Cliente Gmail con OAuth 2.0. Funciona en local, Streamlit Cloud y Render."""
 
 import base64
 import json
@@ -25,31 +25,54 @@ QUERIES_BANCO = {
 
 
 def _es_produccion() -> bool:
-    """Detecta si la app corre en Streamlit Cloud."""
+    """Detecta si la app corre en un entorno de producción (Streamlit Cloud o Render)."""
     if os.getenv("STREAMLIT_SHARING_MODE") or os.getenv("STREAMLIT_SERVER_HEADLESS"):
+        return True
+    if os.getenv("RENDER"):
         return True
     return os.getenv("APP_ENV", "development") == "production"
 
 
+def _es_render() -> bool:
+    """Detecta específicamente si corre en Render."""
+    return bool(os.getenv("RENDER"))
+
+
+def _es_streamlit_cloud() -> bool:
+    """Detecta específicamente si corre en Streamlit Cloud."""
+    return bool(os.getenv("STREAMLIT_SHARING_MODE") or os.getenv("STREAMLIT_SERVER_HEADLESS"))
+
+
 def _get_client_config() -> dict:
     """
-    Lee la configuración OAuth del lugar correcto según ambiente.
-    - Local:      credentials-web.json (Web) o credentials.json (Desktop/fallback)
-    - Producción: st.secrets["gmail_credentials"]
+    Lee la configuración OAuth del lugar correcto según ambiente:
+    - Render:          /etc/secrets/credentials-web.json
+    - Streamlit Cloud: st.secrets["gmail_credentials"]
+    - Local:           credentials-web.json o credentials.json en raíz
     """
-    if _es_produccion():
+    if _es_render():
+        render_path = Path("/etc/secrets/credentials-web.json")
+        if render_path.exists():
+            with open(render_path, encoding="utf-8") as f:
+                return json.load(f)
+        raise FileNotFoundError(
+            "No se encontró /etc/secrets/credentials-web.json en Render. "
+            "Verifica que el Secret File esté configurado en el dashboard."
+        )
+
+    if _es_streamlit_cloud():
         try:
             import streamlit as st
             s = st.secrets["gmail_credentials"]
             return {
                 "web": {
-                    "client_id":                    s["client_id"],
-                    "project_id":                   s["project_id"],
-                    "auth_uri":                     s["auth_uri"],
-                    "token_uri":                    s["token_uri"],
-                    "auth_provider_x509_cert_url":  s["auth_provider_x509_cert_url"],
-                    "client_secret":                s["client_secret"],
-                    "redirect_uris":                list(s["redirect_uris"]),
+                    "client_id":                   s["client_id"],
+                    "project_id":                  s["project_id"],
+                    "auth_uri":                    s["auth_uri"],
+                    "token_uri":                   s["token_uri"],
+                    "auth_provider_x509_cert_url": s["auth_provider_x509_cert_url"],
+                    "client_secret":               s["client_secret"],
+                    "redirect_uris":               list(s["redirect_uris"]),
                 }
             }
         except Exception as exc:
@@ -57,26 +80,37 @@ def _get_client_config() -> dict:
                 "No se pudieron leer credentials de st.secrets['gmail_credentials']. "
                 f"Verifica la configuración en Streamlit Cloud. Error: {exc}"
             ) from exc
-    else:
-        # Preferir Web client; fallback a Desktop
-        for fname in ("credentials-web.json", "credentials.json"):
-            path = _BASE_DIR / fname
-            if path.exists():
-                with open(path, encoding="utf-8") as f:
-                    return json.load(f)
-        raise FileNotFoundError(
-            "No se encontró credentials-web.json ni credentials.json. "
-            "Descarga las credenciales OAuth desde Google Cloud Console."
-        )
+
+    # Local: preferir Web client; fallback a Desktop
+    for fname in ("credentials-web.json", "credentials.json"):
+        path = _BASE_DIR / fname
+        if path.exists():
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+    raise FileNotFoundError(
+        "No se encontró credentials-web.json ni credentials.json. "
+        "Descarga las credenciales OAuth desde Google Cloud Console."
+    )
 
 
 def _get_token_dict() -> Optional[dict]:
     """
     Lee el token OAuth según ambiente:
-    - Local:      lee token.json del disco.
-    - Producción: lee desde st.secrets["gmail_token"].
+    - Render:          /etc/secrets/token.json
+    - Streamlit Cloud: st.secrets["gmail_token"]
+    - Local:           token.json en raíz
     """
-    if _es_produccion():
+    if _es_render():
+        render_path = Path("/etc/secrets/token.json")
+        if render_path.exists():
+            try:
+                with open(render_path, encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as exc:
+                print(f"[gmail_client] Error leyendo token.json desde Render: {exc}")
+        return None
+
+    if _es_streamlit_cloud():
         try:
             import streamlit as st
             s = st.secrets["gmail_token"]
@@ -91,21 +125,23 @@ def _get_token_dict() -> Optional[dict]:
         except Exception as exc:
             print(f"[gmail_client] No se pudo leer gmail_token de st.secrets: {exc}")
             return None
-    else:
-        if TOKEN_PATH.exists():
-            try:
-                with open(TOKEN_PATH, encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception as exc:
-                print(f"[gmail_client] Error leyendo token.json: {exc}")
-        return None
+
+    # Local
+    if TOKEN_PATH.exists():
+        try:
+            with open(TOKEN_PATH, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as exc:
+            print(f"[gmail_client] Error leyendo token.json local: {exc}")
+    return None
 
 
 def get_credentials() -> Credentials:
     """
     Obtiene credenciales OAuth válidas.
-    - Local:      token.json del disco; abre navegador si no existe.
-    - Producción: st.secrets["gmail_token"]; falla claro si no hay token.
+    - Local:           token.json del disco; abre navegador si no existe.
+    - Render:          /etc/secrets/token.json; falla claro si no existe.
+    - Streamlit Cloud: st.secrets["gmail_token"]; falla claro si no hay token.
     """
     creds: Optional[Credentials] = None
 
@@ -130,8 +166,10 @@ def get_credentials() -> Credentials:
         if not creds:
             if _es_produccion():
                 raise RuntimeError(
-                    "En producción se requiere un token válido en st.secrets['gmail_token']. "
-                    "Si el token expiró, regenéralo localmente y actualiza los secrets."
+                    "En producción se requiere un token válido. "
+                    "Render: sube token.json a /etc/secrets/. "
+                    "Streamlit Cloud: actualiza st.secrets['gmail_token']. "
+                    "Regenera el token localmente si expiró."
                 )
             client_config = _get_client_config()
             flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
